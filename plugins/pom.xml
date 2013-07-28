@@ -14,5 +14,6 @@
 	<description>Parent project to support Liferay plugins.</description>
 	<modules>
 		<module>liferay-maven-plugin</module>
+		<module>liferay-bundle-plugin-lifecycle</module>
 	</modules>
 </project>
