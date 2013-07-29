@@ -1,6 +1,7 @@
 package com.liferay.maven.lifecycle;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 import org.apache.maven.artifact.Artifact;
@@ -98,61 +99,57 @@ public class TomcatBundleMojo extends AbstractMojo {
 			outputDirectory.mkdirs();
 		}
 
-		if (tomcatArtifact != null) {
-			extractTomcat(tomcatArtifact);
-			copyTomcatFilesFromProfile();
-		}
+		try {
+			if (tomcatArtifact != null) {
+				extractTomcat(tomcatArtifact);
+				copyTomcatFilesFromProfile();
+			}
 
-		Artifact portalServiceArtifact = resolvePortalServiceArtifact();
+			Artifact portalServiceArtifact = resolvePortalServiceArtifact();
 
-		if (portalServiceArtifact != null) {
-			copyPortalServiceToGlobalClassloaderDirectory(portalServiceArtifact);
+			if (portalServiceArtifact != null) {
+				copyPortalServiceToGlobalClassloaderDirectory(portalServiceArtifact);
+			}
+		} catch (Exception e) {
+			getLog().error(e);
 		}
 	}
 
-	protected void copyPortalServiceToGlobalClassloaderDirectory(Artifact portalServiceArtifact) {
+	protected void copyPortalServiceToGlobalClassloaderDirectory(Artifact portalServiceArtifact)
+		throws IOException {
 		File tomcatHome = new File(outputDirectory, "tomcat-"
 			+ tomcatVersion);
 		File globalLibDirectory = new File(tomcatHome, "lib");
 
-		try {
-			FileUtils.copyFileToDirectory(portalServiceArtifact.getFile(), globalLibDirectory);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		FileUtils.copyFileToDirectory(portalServiceArtifact.getFile(), globalLibDirectory);
 	}
 
-	protected void extractTomcat(Artifact tomcatArtifact) {
+	protected void extractTomcat(Artifact tomcatArtifact) throws Exception {
 		File file = tomcatArtifact.getFile();
-		try {
-			UnArchiver unArchiver = archiverManager.getUnArchiver(file);
 
-			unArchiver.setSourceFile(file);
-			unArchiver.setDestDirectory(outputDirectory);
+		UnArchiver unArchiver = archiverManager.getUnArchiver(file);
 
-			unArchiver.extract();
+		unArchiver.setSourceFile(file);
+		unArchiver.setDestDirectory(outputDirectory);
 
-			File oldTomcatHome = new File(outputDirectory, "apache-tomcat-"
-				+ tomcatArtifact.getVersion());
+		unArchiver.extract();
 
-			File newTomcatHome = new File(outputDirectory, "tomcat-"
-				+ tomcatArtifact.getVersion());
+		File oldTomcatHome = new File(outputDirectory, "apache-tomcat-"
+			+ tomcatArtifact.getVersion());
 
-			FileUtils.rename(oldTomcatHome, newTomcatHome);
+		File newTomcatHome = new File(outputDirectory, "tomcat-"
+			+ tomcatArtifact.getVersion());
 
-			if (tomcatCleanupWebapps) {
-				File webappsDirectory = new File(newTomcatHome, "webapps");
+		FileUtils.rename(oldTomcatHome, newTomcatHome);
 
-				FileUtils.cleanDirectory(webappsDirectory);
-			}
+		if (tomcatCleanupWebapps) {
+			File webappsDirectory = new File(newTomcatHome, "webapps");
 
-		} catch (Exception e) {
-			e.printStackTrace();
+			FileUtils.cleanDirectory(webappsDirectory);
 		}
-
 	}
 
-	protected void copyTomcatFilesFromProfile() {
+	protected void copyTomcatFilesFromProfile() throws IOException {
 		File profilesDirectory = new File(project.getBasedir(),
 				"src/main/profiles/");
 		List<Profile> profiles = project.getActiveProfiles();
@@ -163,14 +160,10 @@ public class TomcatBundleMojo extends AbstractMojo {
 				File tomcatSourceDirectory = new File(profileDirectory,
 						"tomcat");
 				if (tomcatSourceDirectory.exists()) {
-					try {
-						File tomcatTargetDirectory = new File(outputDirectory,
-								"tomcat-" + tomcatVersion);
-						FileUtils.copyDirectoryStructure(tomcatSourceDirectory,
-								tomcatTargetDirectory);
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+					File tomcatTargetDirectory = new File(outputDirectory,
+							"tomcat-" + tomcatVersion);
+					FileUtils.copyDirectoryStructure(tomcatSourceDirectory,
+							tomcatTargetDirectory);
 				}
 			}
 		}
