@@ -49,6 +49,9 @@ public class TomcatBundleMojo extends AbstractMojo {
 	@Parameter(defaultValue = "7.0.40", alias = "tomcat.version", required = true)
 	private String tomcatVersion;
 
+	@Parameter(defaultValue = "true", alias = "tomcat.cleanup.webapps", required = true)
+	private boolean tomcatCleanupWebapps;
+
 	@Parameter(defaultValue = "${project.build.directory}", property = "outputDir", required = true)
 	private File outputDirectory;
 
@@ -77,7 +80,6 @@ public class TomcatBundleMojo extends AbstractMojo {
 		}
 
 		if (tomcatArtifact != null) {
-
 			extractTomcat(tomcatArtifact);
 			copyTomcatFilesFromProfile();
 		}
@@ -92,9 +94,21 @@ public class TomcatBundleMojo extends AbstractMojo {
 			unArchiver.setDestDirectory(outputDirectory);
 
 			unArchiver.extract();
-			FileUtils.rename(new File(outputDirectory, "apache-tomcat-"
-					+ tomcatArtifact.getVersion()), new File(outputDirectory,
-					"tomcat-" + tomcatArtifact.getVersion()));
+
+			File oldTomcatHome = new File(outputDirectory, "apache-tomcat-"
+				+ tomcatArtifact.getVersion());
+
+			File newTomcatHome = new File(outputDirectory, "tomcat-"
+				+ tomcatArtifact.getVersion());
+
+			FileUtils.rename(oldTomcatHome, newTomcatHome);
+
+			if (tomcatCleanupWebapps) {
+				File webappsDirectory = new File(newTomcatHome, "webapps");
+
+				FileUtils.cleanDirectory(webappsDirectory);
+			}
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
