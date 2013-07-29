@@ -75,6 +75,22 @@ public class TomcatBundleMojo extends AbstractMojo {
 		return artifact;
 	}
 
+	protected Artifact resolvePortletArtifact() {
+		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
+
+		Artifact artifact = artifactFactory.createArtifact("javax.portlet",
+				"portlet-api", "2.0", Artifact.SCOPE_COMPILE, "jar");
+
+		artifactResolutionRequest.setArtifact(artifact);
+		artifactResolutionRequest.setLocalRepository(localRepository);
+		artifactResolutionRequest.setRemoteRepositories(remoteRepositories);
+
+		ArtifactResolutionResult artifactResolutionResult = artifactResolver
+				.resolve(artifactResolutionRequest);
+
+		return artifact;
+	}
+
 	protected Artifact resolveTomcatArtifact() {
 		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
 
@@ -109,6 +125,12 @@ public class TomcatBundleMojo extends AbstractMojo {
 
 			if (portalServiceArtifact != null) {
 				copyPortalServiceToGlobalClassloaderDirectory(portalServiceArtifact);
+			}
+
+			Artifact portletArtifact = resolvePortletArtifact();
+
+			if (portletArtifact != null) {
+				copyPortalServiceToGlobalClassloaderDirectory(portletArtifact);
 			}
 		} catch (Exception e) {
 			getLog().error(e);
