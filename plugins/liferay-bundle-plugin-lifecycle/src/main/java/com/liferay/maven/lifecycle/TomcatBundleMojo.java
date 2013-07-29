@@ -46,6 +46,9 @@ public class TomcatBundleMojo extends AbstractMojo {
 	@Parameter(required = true, readonly = true, defaultValue = "${project.remoteArtifactRepositories}")
 	protected List<ArtifactRepository> remoteRepositories;
 
+	@Parameter(alias = "liferay.version", required = true)
+	private String liferayVersion;
+
 	@Parameter(defaultValue = "7.0.40", alias = "tomcat.version", required = true)
 	private String tomcatVersion;
 
@@ -54,6 +57,22 @@ public class TomcatBundleMojo extends AbstractMojo {
 
 	@Parameter(defaultValue = "${project.build.directory}", property = "outputDir", required = true)
 	private File outputDirectory;
+
+	protected Artifact resolvePortalServiceArtifact() {
+		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
+
+		Artifact artifact = artifactFactory.createArtifact("com.liferay.portal",
+				"portal-service", liferayVersion, Artifact.SCOPE_COMPILE, "jar");
+
+		artifactResolutionRequest.setArtifact(artifact);
+		artifactResolutionRequest.setLocalRepository(localRepository);
+		artifactResolutionRequest.setRemoteRepositories(remoteRepositories);
+
+		ArtifactResolutionResult artifactResolutionResult = artifactResolver
+				.resolve(artifactResolutionRequest);
+
+		return artifact;
+	}
 
 	protected Artifact resolveTomcatArtifact() {
 		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
@@ -82,6 +101,24 @@ public class TomcatBundleMojo extends AbstractMojo {
 		if (tomcatArtifact != null) {
 			extractTomcat(tomcatArtifact);
 			copyTomcatFilesFromProfile();
+		}
+
+		Artifact portalServiceArtifact = resolvePortalServiceArtifact();
+
+		if (portalServiceArtifact != null) {
+			copyPortalServiceToGlobalClassloaderDirectory(portalServiceArtifact);
+		}
+	}
+
+	protected void copyPortalServiceToGlobalClassloaderDirectory(Artifact portalServiceArtifact) {
+		File tomcatHome = new File(outputDirectory, "tomcat-"
+			+ tomcatVersion);
+		File globalLibDirectory = new File(tomcatHome, "lib");
+
+		try {
+			FileUtils.copyFileToDirectory(portalServiceArtifact.getFile(), globalLibDirectory);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
