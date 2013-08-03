@@ -5,11 +5,10 @@ import java.io.IOException;
 import java.util.List;
 
 import org.apache.maven.artifact.Artifact;
-import org.apache.maven.artifact.factory.ArtifactFactory;
+import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.ArtifactHandler;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
-import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.model.Profile;
 import org.apache.maven.plugin.AbstractMojo;
@@ -30,9 +29,6 @@ public class TomcatBundleMojo extends AbstractMojo {
 	protected ArchiverManager archiverManager;
 
 	@Component
-	protected ArtifactFactory artifactFactory;
-
-	@Component
 	protected ArtifactHandler artifactHandler;
 
 	@Component
@@ -50,104 +46,45 @@ public class TomcatBundleMojo extends AbstractMojo {
 	@Parameter(alias = "liferay.version", required = true)
 	private String liferayVersion;
 
-	@Parameter(defaultValue = "7.0.40", alias = "tomcat.version", required = true)
-	private String tomcatVersion;
-
-	@Parameter(defaultValue = "true", alias = "tomcat.cleanup.webapps", required = true)
-	private boolean tomcatCleanupWebapps;
-
 	@Parameter(defaultValue = "${project.build.directory}", property = "outputDir", required = true)
 	private File outputDirectory;
 
-	protected Artifact resolvePortalServiceArtifact() {
+	protected Artifact resolveliferayPortalArtifact() {
 		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
 
-		Artifact artifact = artifactFactory.createArtifact("com.liferay.portal",
-				"portal-service", liferayVersion, Artifact.SCOPE_COMPILE, "jar");
+		Artifact artifact = new DefaultArtifact("com.liferay.portal",
+			"liferay-portal", liferayVersion, Artifact.SCOPE_COMPILE, "zip", "tomcat", artifactHandler);
 
 		artifactResolutionRequest.setArtifact(artifact);
 		artifactResolutionRequest.setLocalRepository(localRepository);
 		artifactResolutionRequest.setRemoteRepositories(remoteRepositories);
 
-		ArtifactResolutionResult artifactResolutionResult = artifactResolver
-				.resolve(artifactResolutionRequest);
-
-		return artifact;
-	}
-
-	protected Artifact resolvePortletArtifact() {
-		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
-
-		Artifact artifact = artifactFactory.createArtifact("javax.portlet",
-				"portlet-api", "2.0", Artifact.SCOPE_COMPILE, "jar");
-
-		artifactResolutionRequest.setArtifact(artifact);
-		artifactResolutionRequest.setLocalRepository(localRepository);
-		artifactResolutionRequest.setRemoteRepositories(remoteRepositories);
-
-		ArtifactResolutionResult artifactResolutionResult = artifactResolver
-				.resolve(artifactResolutionRequest);
-
-		return artifact;
-	}
-
-	protected Artifact resolveTomcatArtifact() {
-		ArtifactResolutionRequest artifactResolutionRequest = new ArtifactResolutionRequest();
-
-		Artifact artifact = artifactFactory.createArtifact("org.apache.tomcat",
-				"tomcat", tomcatVersion, Artifact.SCOPE_COMPILE, "tar.gz");
-
-		artifactResolutionRequest.setArtifact(artifact);
-		artifactResolutionRequest.setLocalRepository(localRepository);
-		artifactResolutionRequest.setRemoteRepositories(remoteRepositories);
-
-		ArtifactResolutionResult artifactResolutionResult = artifactResolver
-				.resolve(artifactResolutionRequest);
+		artifactResolver.resolve(artifactResolutionRequest);
 
 		return artifact;
 	}
 
 	public void execute() throws MojoExecutionException {
 
-		Artifact tomcatArtifact = resolveTomcatArtifact();
+		Artifact liferayPortalArtifact = resolveliferayPortalArtifact();
 
 		if (!outputDirectory.exists()) {
 			outputDirectory.mkdirs();
 		}
 
 		try {
-			if (tomcatArtifact != null) {
-				extractTomcat(tomcatArtifact);
-				copyTomcatFilesFromProfile();
-			}
-
-			Artifact portalServiceArtifact = resolvePortalServiceArtifact();
-
-			if (portalServiceArtifact != null) {
-				copyPortalServiceToGlobalClassloaderDirectory(portalServiceArtifact);
-			}
-
-			Artifact portletArtifact = resolvePortletArtifact();
-
-			if (portletArtifact != null) {
-				copyPortalServiceToGlobalClassloaderDirectory(portletArtifact);
+			if (liferayPortalArtifact != null) {
+				extractTomcat(liferayPortalArtifact);
 			}
 		} catch (Exception e) {
 			getLog().error(e);
 		}
 	}
 
-	protected void copyPortalServiceToGlobalClassloaderDirectory(Artifact portalServiceArtifact)
-		throws IOException {
-		File tomcatHome = new File(outputDirectory, "tomcat-"
-			+ tomcatVersion);
-		File globalLibDirectory = new File(tomcatHome, "lib");
+	protected void extractTomcat(Artifact liferayPortalArtifact) throws Exception {
+		getLog().info("Unpacking " + liferayPortalArtifact.getArtifactId() + "-" + liferayPortalArtifact.getVersion());
 
-		FileUtils.copyFileToDirectory(portalServiceArtifact.getFile(), globalLibDirectory);
-	}
-
-	protected void extractTomcat(Artifact tomcatArtifact) throws Exception {
-		File file = tomcatArtifact.getFile();
+		File file = liferayPortalArtifact.getFile();
 
 		UnArchiver unArchiver = archiverManager.getUnArchiver(file);
 
@@ -156,19 +93,6 @@ public class TomcatBundleMojo extends AbstractMojo {
 
 		unArchiver.extract();
 
-		File oldTomcatHome = new File(outputDirectory, "apache-tomcat-"
-			+ tomcatArtifact.getVersion());
-
-		File newTomcatHome = new File(outputDirectory, "tomcat-"
-			+ tomcatArtifact.getVersion());
-
-		FileUtils.rename(oldTomcatHome, newTomcatHome);
-
-		if (tomcatCleanupWebapps) {
-			File webappsDirectory = new File(newTomcatHome, "webapps");
-
-			FileUtils.cleanDirectory(webappsDirectory);
-		}
 	}
 
 	protected void copyTomcatFilesFromProfile() throws IOException {
@@ -183,7 +107,7 @@ public class TomcatBundleMojo extends AbstractMojo {
 						"tomcat");
 				if (tomcatSourceDirectory.exists()) {
 					File tomcatTargetDirectory = new File(outputDirectory,
-							"tomcat-" + tomcatVersion);
+							"liferay-portal-6.1.1-ce-ga2/tomcat-7.0.27");
 					FileUtils.copyDirectoryStructure(tomcatSourceDirectory,
 							tomcatTargetDirectory);
 				}
