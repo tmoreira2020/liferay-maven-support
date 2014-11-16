@@ -1,0 +1,33 @@
+##
+## Auto Deploy
+##
+
+    #
+    # Set the directory to scan for layout templates, portlets, and themes to
+    # auto deploy.
+    #
+    auto.deploy.deploy.dir=/opt/liferay/deploy
+
+
+##
+## Browser Launcher
+##
+
+    #
+    # Enter a URL to automatically launch a browser to that URL when the portal
+    # has fully initialized. Enter a blank URL to disable this feature.
+    #
+    browser.launcher.url=
+
+
+##
+## JDBC
+##
+
+    #
+    # MySQL
+    #
+    jdbc.default.driverClassName=com.mysql.jdbc.Driver
+    jdbc.default.url=jdbc:mysql://localhost/lportal
+    jdbc.default.username=<%= scope.lookupvar("params::mysql_username") %>
+    jdbc.default.password=<%= scope.lookupvar("params::mysql_password") %>

@@ -1,0 +1,19 @@
+
+server_names_hash_bucket_size 64;
+
+
+server {
+	server_name ${hostname};
+	rewrite ^ $scheme://www.${hostname}$request_uri permanent;
+}
+
+server {
+	server_name www.${hostname};
+
+	location / {
+		server_name_in_redirect on;
+		proxy_set_header X-Forwarded-Host $host;
+		proxy_set_header Host $server_name;
+		proxy_pass http://localhost:8080;
+	}
+}
